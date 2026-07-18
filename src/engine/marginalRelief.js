@@ -48,3 +48,57 @@ export function applySection87ARebateOldRegime(taxableIncome, taxBeforeRebate) {
     taxAfterRebate: taxBeforeRebate
   };
 }
+
+/**
+ * Surcharge slab lookup (FY 2026-27 rules, individuals/HUF).
+ * New regime surcharge is capped at 25% (no 37% slab above ₹5Cr).
+ * Old regime retains the 37% slab above ₹5Cr.
+ */
+function getSurchargeSlab(income, regime) {
+  if (income <= 5000000) return { rate: 0, threshold: 0 };
+  if (income <= 10000000) return { rate: 0.10, threshold: 5000000 };
+  if (income <= 20000000) return { rate: 0.15, threshold: 10000000 };
+  if (regime === 'old' && income > 50000000) return { rate: 0.37, threshold: 50000000 };
+  return { rate: 0.25, threshold: 20000000 };
+}
+
+/**
+ * Computes surcharge on post-rebate tax, with marginal relief so that
+ * crossing a surcharge threshold never increases total tax+surcharge
+ * by more than the amount of income above that threshold.
+ *
+ * @param {number} taxableIncome
+ * @param {number} taxAfterRebate - post-rebate tax (pre-surcharge, pre-cess)
+ * @param {'old'|'new'} regime
+ * @param {(incomeAtThreshold: number) => number} computeTaxAtIncomeFn
+ *        Callback that returns post-rebate tax for a given income,
+ *        using the same slabs/rebate rules as the caller. Needed to
+ *        compute the tax+surcharge total exactly at the threshold.
+ */
+export function computeSurcharge(taxableIncome, taxAfterRebate, regime, computeTaxAtIncomeFn) {
+  const { rate, threshold } = getSurchargeSlab(taxableIncome, regime);
+
+  if (rate === 0) {
+    return { rate: 0, surcharge: 0, marginalRelief: 0, taxAfterSurcharge: taxAfterRebate };
+  }
+
+  const surcharge = taxAfterRebate * rate;
+  const totalWithSurcharge = taxAfterRebate + surcharge;
+
+  const prevRate = getSurchargeSlab(threshold, regime).rate;
+  const taxAtThreshold = computeTaxAtIncomeFn(threshold);
+  const totalAtThreshold = taxAtThreshold * (1 + prevRate);
+  const maxAllowedTotal = totalAtThreshold + (taxableIncome - threshold);
+
+  if (totalWithSurcharge > maxAllowedTotal) {
+    const marginalRelief = totalWithSurcharge - maxAllowedTotal;
+    return {
+      rate,
+      surcharge: surcharge - marginalRelief,
+      marginalRelief,
+      taxAfterSurcharge: maxAllowedTotal
+    };
+  }
+
+  return { rate, surcharge, marginalRelief: 0, taxAfterSurcharge: totalWithSurcharge };
+}

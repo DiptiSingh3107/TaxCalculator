@@ -1,15 +1,15 @@
 import { 
   oldRegimeSlabsBelow60, oldRegimeSlabsSenior, oldRegimeSlabsSuperSenior, 
   newRegimeSlabs, computeSlabTax 
-} from './slabRates';
+} from './slabRates.js';
 import { 
   STANDARD_DEDUCTION, calculateHRAExemption, calculate80C, 
   calculate80CCD1B, calculate80CCD2Old, calculate80CCD2New, 
   calculate80D, calculate24b, calculate80TTA, calculate80TTB 
-} from './deductions';
+} from './deductions.js';
 import { 
-  applySection87ARebateNewRegime, applySection87ARebateOldRegime 
-} from './marginalRelief';
+  applySection87ARebateNewRegime, applySection87ARebateOldRegime, computeSurcharge 
+} from './marginalRelief.js';
 
 export function calculateTaxes(inputs) {
   // Extract and normalize inputs
@@ -107,9 +107,15 @@ export function calculateTaxes(inputs) {
   
   const { tax: taxBeforeRebateOld, breakdown: breakdownOld } = computeSlabTax(taxableIncomeOld, oldSlabs);
   const { rebate: rebateOld, taxAfterRebate: taxAfterRebateOld } = applySection87ARebateOldRegime(taxableIncomeOld, taxBeforeRebateOld);
-  
-  const cessOld = taxAfterRebateOld * 0.04;
-  const totalTaxOld = taxAfterRebateOld + cessOld;
+
+  const { rate: surchargeRateOld, surcharge: surchargeOld, marginalRelief: surchargeMarginalReliefOld, taxAfterSurcharge: taxAfterSurchargeOld } =
+    computeSurcharge(taxableIncomeOld, taxAfterRebateOld, 'old', (incomeAtThreshold) => {
+      const { tax } = computeSlabTax(incomeAtThreshold, oldSlabs);
+      return applySection87ARebateOldRegime(incomeAtThreshold, tax).taxAfterRebate;
+    });
+
+  const cessOld = taxAfterSurchargeOld * 0.04;
+  const totalTaxOld = taxAfterSurchargeOld + cessOld;
   
   // -- NEW REGIME COMPUTATION --
   // New regime doesn't allow HRA, 80C, 80D, 24b, 80TTA/TTB, or employee NPS 80CCD1B
@@ -120,9 +126,15 @@ export function calculateTaxes(inputs) {
   
   const { tax: taxBeforeRebateNew, breakdown: breakdownNew } = computeSlabTax(taxableIncomeNew, newRegimeSlabs);
   const { rebate: rebateNew, taxAfterRebate: taxAfterRebateNew, marginalRelief } = applySection87ARebateNewRegime(taxableIncomeNew, taxBeforeRebateNew);
-  
-  const cessNew = taxAfterRebateNew * 0.04;
-  const totalTaxNew = taxAfterRebateNew + cessNew;
+
+  const { rate: surchargeRateNew, surcharge: surchargeNew, marginalRelief: surchargeMarginalReliefNew, taxAfterSurcharge: taxAfterSurchargeNew } =
+    computeSurcharge(taxableIncomeNew, taxAfterRebateNew, 'new', (incomeAtThreshold) => {
+      const { tax } = computeSlabTax(incomeAtThreshold, newRegimeSlabs);
+      return applySection87ARebateNewRegime(incomeAtThreshold, tax).taxAfterRebate;
+    });
+
+  const cessNew = taxAfterSurchargeNew * 0.04;
+  const totalTaxNew = taxAfterSurchargeNew + cessNew;
   
   // -- RECOMMENDATION --
   let betterRegime = 'equal';
@@ -166,6 +178,10 @@ export function calculateTaxes(inputs) {
       taxBeforeRebate: taxBeforeRebateOld,
       rebate87A: rebateOld,
       taxAfterRebate: taxAfterRebateOld,
+      surchargeRate: surchargeRateOld,
+      surcharge: surchargeOld,
+      surchargeMarginalRelief: surchargeMarginalReliefOld,
+      taxAfterSurcharge: taxAfterSurchargeOld,
       cess: cessOld,
       totalTax: totalTaxOld
     },
@@ -185,6 +201,10 @@ export function calculateTaxes(inputs) {
       rebate87A: rebateNew,
       marginalRelief: marginalRelief,
       taxAfterRebate: taxAfterRebateNew,
+      surchargeRate: surchargeRateNew,
+      surcharge: surchargeNew,
+      surchargeMarginalRelief: surchargeMarginalReliefNew,
+      taxAfterSurcharge: taxAfterSurchargeNew,
       cess: cessNew,
       totalTax: totalTaxNew
     },
