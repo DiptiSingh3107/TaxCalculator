@@ -76,7 +76,7 @@ export function calculateTaxes(inputs) {
 
   // Common computations
   const salaryIncome = incomeType === 'salary' 
-    ? grossIncome - standardDeductionAmount - applicableProfessionalTax
+    ? Math.max(0, grossIncome - standardDeductionAmount - applicableProfessionalTax)
     : 0;
     
   const grossTotalIncomeBase = salaryIncome + businessOrProfessionIncome + (incomeType === 'salary' ? bonus : 0) + savingsInterest + fdInterest;
