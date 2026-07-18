@@ -15,7 +15,7 @@ export default function LivePreview({ data }) {
   let recText = "Fill in your details to see what you save";
   let recColor = "bg-gray-100 text-gray-800 border-gray-200";
   
-  if (data && data.grossSalary > 0) {
+  if (data && oldRegime.grossTotalIncome > 0) {
     if (isOldBetter) {
       recText = `✅ Old Regime saves you ${formatIndianCurrency(recommendation.savingsAmount)}`;
       recColor = "bg-blue-50 text-blue-800 border-blue-200";
@@ -55,13 +55,15 @@ export default function LivePreview({ data }) {
       {/* Income Summary (Small Card) */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6">
         <div className="flex justify-between items-center text-sm mb-1">
-          <span className="text-gray-500">Gross Income</span>
+          <span className="text-gray-500">{result.incomeType === 'salary' ? 'Gross Income' : 'Taxable Profit'}</span>
           <span className="font-bold">{formatIndianCurrency(Math.max(0, oldRegime.grossTotalIncome))}</span>
         </div>
-        <div className="flex justify-between items-center text-sm text-gray-500">
-          <span>Standard Deduction</span>
-          <span className="text-red-600">{formatIndianCurrency(-75000)}</span>
-        </div>
+        {oldRegime.deductions.standardDeduction > 0 && (
+          <div className="flex justify-between items-center text-sm text-gray-500">
+            <span>Standard Deduction</span>
+            <span className="text-red-600">{formatIndianCurrency(-oldRegime.deductions.standardDeduction)}</span>
+          </div>
+        )}
       </div>
 
       {/* Side-by-Side Comparison */}
@@ -73,7 +75,10 @@ export default function LivePreview({ data }) {
         </div>
         
         <div className="p-4">
-          <Row label="Gross Income" oldVal={oldRegime.grossTotalIncome} newVal={newRegime.grossTotalIncome} />
+          {result.incomeType === 'freelance' && <Row label="Gross Receipts" oldVal={data.freelanceGrossReceipts || 0} newVal={data.freelanceGrossReceipts || 0} />}
+          {result.incomeType === 'business' && <Row label="Gross Turnover" oldVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} newVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} />}
+          
+          <Row label={result.incomeType === 'salary' ? "Gross Income" : "Taxable Profit"} oldVal={oldRegime.grossTotalIncome} newVal={newRegime.grossTotalIncome} />
           <Row label="Std Deduction" oldVal={oldRegime.deductions.standardDeduction} newVal={newRegime.deductions.standardDeduction} isNegative />
           <Row label="Prof. Tax" oldVal={oldRegime.deductions.professionalTax} newVal={newRegime.deductions.professionalTax} isNegative />
           <Row label="HRA Exemption" oldVal={oldRegime.deductions.hraExemption} newVal={0} isNegative />
@@ -133,8 +138,10 @@ export default function LivePreview({ data }) {
       <div className="mt-8 text-xs text-gray-400">
         <p className="font-semibold mb-1">ℹ️ Assumptions:</p>
         <ul className="list-disc pl-4 space-y-1">
-          <li>Basic salary estimated as 40% of gross (if unknown)</li>
-          <li>PF estimated at 12% of basic (if skipped)</li>
+          {result.incomeType === 'salary' && <li>Basic salary estimated as 40% of gross (if unknown)</li>}
+          {result.incomeType === 'salary' && <li>PF estimated at 12% of basic (if skipped)</li>}
+          {result.incomeType === 'freelance' && <li>Sec 44ADA Presumptive taxation assumes 50% profit</li>}
+          {result.incomeType === 'business' && <li>Sec 44AD assumes 6% (digital) / 8% (cash) profit</li>}
         </ul>
       </div>
     </div>

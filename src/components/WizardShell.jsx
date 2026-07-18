@@ -12,47 +12,82 @@ import HealthStep from './steps/HealthStep';
 import HomeLoanStep from './steps/HomeLoanStep';
 import InterestStep from './steps/InterestStep';
 
-const STEPS = [
-  { id: 'age', component: AgeStep, label: 'Age' },
-  { id: 'salary', component: SalaryStep, label: 'Income' },
-  { id: 'bonus', component: BonusStep, label: 'Bonus' },
-  { id: 'pt', component: ProfTaxStep, label: 'Prof. Tax' },
-  { id: 'pf', component: PFStep, label: 'PF' },
-  { id: 'rent', component: RentStep, label: 'Rent' },
-  { id: 'investments', component: InvestmentsStep, label: '80C Investments' },
-  { id: 'nps', component: NPSStep, label: 'NPS' },
-  { id: 'health', component: HealthStep, label: 'Health' },
-  { id: 'homeloan', component: HomeLoanStep, label: 'Home Loan' },
-  { id: 'interest', component: InterestStep, label: 'Interest' },
-];
+import IncomeTypeStep from './steps/IncomeTypeStep';
+import FreelanceStep from './steps/FreelanceStep';
+import BusinessStep from './steps/BusinessStep';
 
 export default function WizardShell({ onFinish }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({ incomeType: 'salary' });
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
 
-  const totalSteps = STEPS.length;
-  const progressPercent = Math.round(((currentStepIndex + 1) / totalSteps) * 100);
+  const getDynamicSteps = () => {
+    const type = formData.incomeType || 'salary';
+    const baseSteps = [
+      { id: 'age', component: AgeStep, label: 'Age' },
+      { id: 'incomeType', component: IncomeTypeStep, label: 'Income Type' }
+    ];
+
+    let incomeSteps = [];
+    if (type === 'salary') {
+      incomeSteps = [
+        { id: 'salary', component: SalaryStep, label: 'Income' },
+        { id: 'bonus', component: BonusStep, label: 'Bonus' },
+        { id: 'pt', component: ProfTaxStep, label: 'Prof. Tax' },
+        { id: 'pf', component: PFStep, label: 'PF' },
+        { id: 'rent', component: RentStep, label: 'Rent' }
+      ];
+    } else if (type === 'freelance') {
+      incomeSteps = [
+        { id: 'freelance', component: FreelanceStep, label: 'Receipts' }
+      ];
+    } else if (type === 'business') {
+      incomeSteps = [
+        { id: 'business', component: BusinessStep, label: 'Turnover' }
+      ];
+    }
+
+    const commonDeductions = [
+      { id: 'investments', component: InvestmentsStep, label: '80C' },
+      { id: 'nps', component: NPSStep, label: 'NPS' },
+      { id: 'health', component: HealthStep, label: 'Health' },
+      { id: 'homeloan', component: HomeLoanStep, label: 'Home Loan' },
+      { id: 'interest', component: InterestStep, label: 'Interest' }
+    ];
+
+    return [...baseSteps, ...incomeSteps, ...commonDeductions];
+  };
+
+  const currentSteps = getDynamicSteps();
+  const totalSteps = currentSteps.length;
+  // Ensure current step index doesn't exceed new array length if they switch types
+  const safeStepIndex = Math.min(currentStepIndex, totalSteps - 1);
+  const progressPercent = Math.round(((safeStepIndex + 1) / totalSteps) * 100);
 
   const updateFormData = (newData) => {
     setFormData(prev => ({ ...prev, ...newData }));
   };
 
   const handleNext = () => {
-    if (currentStepIndex < totalSteps - 1) {
-      setCurrentStepIndex(currentStepIndex + 1);
+    // Basic validation before allowing next on IncomeTypeStep
+    if (currentSteps[safeStepIndex].id === 'incomeType' && !formData.incomeType) {
+      return; // prevent next
+    }
+    
+    if (safeStepIndex < totalSteps - 1) {
+      setCurrentStepIndex(safeStepIndex + 1);
     } else {
       onFinish(formData);
     }
   };
 
   const handleBack = () => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(currentStepIndex - 1);
+    if (safeStepIndex > 0) {
+      setCurrentStepIndex(safeStepIndex - 1);
     }
   };
 
-  const CurrentStepComponent = STEPS[currentStepIndex].component;
+  const CurrentStepComponent = currentSteps[safeStepIndex].component;
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white font-sans">
@@ -64,7 +99,7 @@ export default function WizardShell({ onFinish }) {
         <div className="sticky top-0 bg-white/95 backdrop-blur z-10 border-b border-gray-100 px-6 py-4">
           <div className="max-w-xl mx-auto flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-              Step {currentStepIndex + 1} of {totalSteps} &middot; {STEPS[currentStepIndex].label}
+              Step {safeStepIndex + 1} of {totalSteps} &middot; {currentSteps[safeStepIndex].label}
             </span>
             <span className="text-sm font-medium text-blue-700">{progressPercent}%</span>
           </div>
@@ -88,16 +123,21 @@ export default function WizardShell({ onFinish }) {
             <div className="pt-6 border-t border-gray-100 flex items-center justify-between mt-auto">
               <button 
                 onClick={handleBack}
-                disabled={currentStepIndex === 0}
-                className={`px-5 py-2.5 font-medium rounded-lg transition ${currentStepIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                disabled={safeStepIndex === 0}
+                className={`px-5 py-2.5 font-medium rounded-lg transition ${safeStepIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 ← Back
               </button>
               <button 
                 onClick={handleNext}
-                className="px-8 py-3 bg-blue-700 text-white font-medium rounded-xl hover:bg-blue-800 transition shadow-sm"
+                disabled={currentSteps[safeStepIndex].id === 'incomeType' && !formData.incomeType}
+                className={`px-8 py-3 text-white font-medium rounded-xl transition shadow-sm ${
+                  currentSteps[safeStepIndex].id === 'incomeType' && !formData.incomeType
+                    ? 'bg-blue-300 cursor-not-allowed'
+                    : 'bg-blue-700 hover:bg-blue-800'
+                }`}
               >
-                {currentStepIndex === totalSteps - 1 ? 'Finish Wizard' : 'Next →'}
+                {safeStepIndex === totalSteps - 1 ? 'Finish Wizard' : 'Next →'}
               </button>
             </div>
 

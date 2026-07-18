@@ -39,18 +39,56 @@ export function calculateTaxes(inputs) {
   
   const homeLoanInterest = inputs.homeLoanInterest || 0;
   
-  // -- COMMON COMPUTATIONS --
-  const salaryIncome = grossSalary - STANDARD_DEDUCTION - professionalTax;
-  const grossTotalIncomeBase = salaryIncome + bonus + savingsInterest + fdInterest;
+  const incomeType = inputs.incomeType || 'salary';
+  
+  // -- COMPUTE BASE INCOME --
+  let grossIncome = 0;
+  let standardDeductionAmount = 0;
+  let businessOrProfessionIncome = 0;
+  let applicableProfessionalTax = 0;
+
+  if (incomeType === 'salary') {
+    grossIncome = inputs.grossSalary || 0;
+    standardDeductionAmount = STANDARD_DEDUCTION;
+    applicableProfessionalTax = professionalTax;
+  } else if (incomeType === 'freelance') {
+    const receipts = inputs.freelanceGrossReceipts || 0;
+    const presumptive = inputs.freelancePresumptive !== false; // Default true
+    if (presumptive) {
+      businessOrProfessionIncome = receipts * 0.50;
+    } else {
+      const expenses = inputs.freelanceExpenses || 0;
+      businessOrProfessionIncome = receipts - expenses;
+    }
+    grossIncome = businessOrProfessionIncome;
+  } else if (incomeType === 'business') {
+    const digital = inputs.businessTurnoverDigital || 0;
+    const cash = inputs.businessTurnoverCash || 0;
+    const presumptive = inputs.businessPresumptive !== false; // Default true
+    if (presumptive) {
+      businessOrProfessionIncome = (digital * 0.06) + (cash * 0.08);
+    } else {
+      const expenses = inputs.businessExpenses || 0;
+      businessOrProfessionIncome = (digital + cash) - expenses;
+    }
+    grossIncome = businessOrProfessionIncome;
+  }
+
+  // Common computations
+  const salaryIncome = incomeType === 'salary' 
+    ? grossIncome - standardDeductionAmount - applicableProfessionalTax
+    : 0;
+    
+  const grossTotalIncomeBase = salaryIncome + businessOrProfessionIncome + (incomeType === 'salary' ? bonus : 0) + savingsInterest + fdInterest;
   
   // -- OLD REGIME COMPUTATION --
-  const hraExemption = calculateHRAExemption(basicSalary, actualHRAReceived, actualRentPaid, isMetro);
-  const incomeFromSalariesOld = salaryIncome + bonus - hraExemption;
-  const grossTotalIncomeOld = incomeFromSalariesOld + savingsInterest + fdInterest;
+  const hraExemption = incomeType === 'salary' ? calculateHRAExemption(basicSalary, actualHRAReceived, actualRentPaid, isMetro) : 0;
+  const incomeFromSalariesOld = salaryIncome + (incomeType === 'salary' ? bonus : 0) - hraExemption;
+  const grossTotalIncomeOld = incomeFromSalariesOld + businessOrProfessionIncome + savingsInterest + fdInterest;
   
   const sec80C = calculate80C(total80C);
   const sec80CCD1B = calculate80CCD1B(employeeNPS);
-  const sec80CCD2Old = calculate80CCD2Old(employerNPS, basicSalary);
+  const sec80CCD2Old = incomeType === 'salary' ? calculate80CCD2Old(employerNPS, basicSalary) : 0;
   const sec80D = calculate80D(healthPremiumSelf, healthPremiumParents, isSenior, isParentsSenior);
   const sec24b = calculate24b(homeLoanInterest);
   const interestDeductionOld = isSenior 
@@ -75,7 +113,7 @@ export function calculateTaxes(inputs) {
   
   // -- NEW REGIME COMPUTATION --
   // New regime doesn't allow HRA, 80C, 80D, 24b, 80TTA/TTB, or employee NPS 80CCD1B
-  const sec80CCD2New = calculate80CCD2New(employerNPS, basicSalary);
+  const sec80CCD2New = incomeType === 'salary' ? calculate80CCD2New(employerNPS, basicSalary) : 0;
   
   let taxableIncomeNew = Math.max(0, grossTotalIncomeBase - sec80CCD2New);
   taxableIncomeNew = Math.round(taxableIncomeNew / 10) * 10;
@@ -106,12 +144,14 @@ export function calculateTaxes(inputs) {
   }
   
   return {
+    incomeType,
     oldRegime: {
-      grossSalary,
+      grossIncome,
+      businessOrProfessionIncome,
       grossTotalIncome: grossTotalIncomeOld,
       deductions: {
-        standardDeduction: STANDARD_DEDUCTION,
-        professionalTax,
+        standardDeduction: standardDeductionAmount,
+        professionalTax: applicableProfessionalTax,
         hraExemption,
         section80C: sec80C,
         npsEmployee_80CCD1B: sec80CCD1B,
@@ -130,13 +170,14 @@ export function calculateTaxes(inputs) {
       totalTax: totalTaxOld
     },
     newRegime: {
-      grossSalary,
+      grossIncome,
+      businessOrProfessionIncome,
       grossTotalIncome: grossTotalIncomeBase,
       deductions: {
-        standardDeduction: STANDARD_DEDUCTION,
-        professionalTax,
+        standardDeduction: standardDeductionAmount,
+        professionalTax: applicableProfessionalTax,
         npsEmployer_80CCD2: sec80CCD2New,
-        total: STANDARD_DEDUCTION + professionalTax + sec80CCD2New
+        total: standardDeductionAmount + applicableProfessionalTax + sec80CCD2New
       },
       taxableIncome: taxableIncomeNew,
       slabBreakdown: breakdownNew,

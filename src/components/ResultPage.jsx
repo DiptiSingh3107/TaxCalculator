@@ -143,10 +143,15 @@ export default function ResultPage({ onRestart, data }) {
                 <div className="min-w-[600px]">
                   <Row label="Category" isHeader />
                   
-                  <Row label="Gross Total Income" oldVal={oldRegime.grossTotalIncome} newVal={newRegime.grossTotalIncome} />
+                  {result.incomeType === 'freelance' && <Row label="Gross Receipts" oldVal={data.freelanceGrossReceipts || 0} newVal={data.freelanceGrossReceipts || 0} />}
+                  {result.incomeType === 'business' && <Row label="Gross Turnover" oldVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} newVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} />}
+                  
+                  <Row label={result.incomeType === 'salary' ? "Gross Total Income" : "Taxable Profit"} oldVal={oldRegime.grossTotalIncome} newVal={newRegime.grossTotalIncome} />
                   
                   {/* Deductions block */}
-                  <Row label="Standard Deduction" oldVal={oldRegime.deductions.standardDeduction} newVal={newRegime.deductions.standardDeduction} isNegative />
+                  {oldRegime.deductions.standardDeduction > 0 && (
+                     <Row label="Standard Deduction" oldVal={oldRegime.deductions.standardDeduction} newVal={newRegime.deductions.standardDeduction} isNegative />
+                  )}
                   {oldRegime.deductions.professionalTax > 0 && <Row label="Professional Tax" oldVal={oldRegime.deductions.professionalTax} newVal={newRegime.deductions.professionalTax} isNegative />}
                   {oldRegime.deductions.hraExemption > 0 && <Row label="HRA Exemption" oldVal={oldRegime.deductions.hraExemption} newVal={0} isNegative />}
                   {oldRegime.deductions.section24b > 0 && <Row label="Home Loan Interest (Sec 24b)" oldVal={oldRegime.deductions.section24b} newVal={0} isNegative />}
