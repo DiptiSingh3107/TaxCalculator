@@ -146,7 +146,7 @@ export default function ResultPage({ onRestart, data }) {
                   {result.incomeType === 'freelance' && <Row label="Gross Receipts" oldVal={data.freelanceGrossReceipts || 0} newVal={data.freelanceGrossReceipts || 0} />}
                   {result.incomeType === 'business' && <Row label="Gross Turnover" oldVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} newVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} />}
                   
-                  <Row label={result.incomeType === 'salary' ? "Gross Total Income" : "Taxable Profit"} oldVal={oldRegime.grossTotalIncome} newVal={newRegime.grossTotalIncome} />
+                  <Row label="Gross Income" oldVal={oldRegime.totalIncomeBeforeDeductions} newVal={newRegime.totalIncomeBeforeDeductions} />
                   
                   {/* Deductions block */}
                   {oldRegime.deductions.standardDeduction > 0 && (

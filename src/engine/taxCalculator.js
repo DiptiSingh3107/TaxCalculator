@@ -143,10 +143,13 @@ export function calculateTaxes(inputs) {
     savingsAmount = 0;
   }
   
+  const totalIncomeBeforeDeductions = grossIncome + (incomeType === 'salary' ? bonus : 0) + savingsInterest + fdInterest;
+
   return {
     incomeType,
     oldRegime: {
       grossIncome,
+      totalIncomeBeforeDeductions,
       businessOrProfessionIncome,
       grossTotalIncome: grossTotalIncomeOld,
       deductions: {
@@ -171,6 +174,7 @@ export function calculateTaxes(inputs) {
     },
     newRegime: {
       grossIncome,
+      totalIncomeBeforeDeductions,
       businessOrProfessionIncome,
       grossTotalIncome: grossTotalIncomeBase,
       deductions: {

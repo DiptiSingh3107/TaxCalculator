@@ -55,8 +55,8 @@ export default function LivePreview({ data }) {
       {/* Income Summary (Small Card) */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6">
         <div className="flex justify-between items-center text-sm mb-1">
-          <span className="text-gray-500">{result.incomeType === 'salary' ? 'Gross Income' : 'Taxable Profit'}</span>
-          <span className="font-bold">{formatIndianCurrency(Math.max(0, oldRegime.grossTotalIncome))}</span>
+          <span className="text-gray-500">Gross Income</span>
+          <span className="font-bold">{formatIndianCurrency(Math.max(0, oldRegime.totalIncomeBeforeDeductions))}</span>
         </div>
         {oldRegime.deductions.standardDeduction > 0 && (
           <div className="flex justify-between items-center text-sm text-gray-500">
@@ -78,7 +78,7 @@ export default function LivePreview({ data }) {
           {result.incomeType === 'freelance' && <Row label="Gross Receipts" oldVal={data.freelanceGrossReceipts || 0} newVal={data.freelanceGrossReceipts || 0} />}
           {result.incomeType === 'business' && <Row label="Gross Turnover" oldVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} newVal={(data.businessTurnoverDigital || 0) + (data.businessTurnoverCash || 0)} />}
           
-          <Row label={result.incomeType === 'salary' ? "Gross Income" : "Taxable Profit"} oldVal={oldRegime.grossTotalIncome} newVal={newRegime.grossTotalIncome} />
+          <Row label="Gross Income" oldVal={oldRegime.totalIncomeBeforeDeductions} newVal={newRegime.totalIncomeBeforeDeductions} />
           <Row label="Std Deduction" oldVal={oldRegime.deductions.standardDeduction} newVal={newRegime.deductions.standardDeduction} isNegative />
           <Row label="Prof. Tax" oldVal={oldRegime.deductions.professionalTax} newVal={newRegime.deductions.professionalTax} isNegative />
           <Row label="HRA Exemption" oldVal={oldRegime.deductions.hraExemption} newVal={0} isNegative />
