@@ -3,7 +3,7 @@ import {
   newRegimeSlabs, computeSlabTax 
 } from './slabRates.js';
 import { 
-  STANDARD_DEDUCTION, calculateHRAExemption, calculate80C, 
+  STANDARD_DEDUCTION_OLD, STANDARD_DEDUCTION_NEW, calculateHRAExemption, calculate80C, 
   calculate80CCD1B, calculate80CCD2Old, calculate80CCD2New, 
   calculate80D, calculate24b, calculate80TTA, calculate80TTB 
 } from './deductions.js';
@@ -43,13 +43,15 @@ export function calculateTaxes(inputs) {
   
   // -- COMPUTE BASE INCOME --
   let grossIncome = 0;
-  let standardDeductionAmount = 0;
+  let standardDeductionAmountOld = 0;
+  let standardDeductionAmountNew = 0;
   let businessOrProfessionIncome = 0;
   let applicableProfessionalTax = 0;
 
   if (incomeType === 'salary') {
     grossIncome = inputs.grossSalary || 0;
-    standardDeductionAmount = STANDARD_DEDUCTION;
+    standardDeductionAmountOld = STANDARD_DEDUCTION_OLD;
+    standardDeductionAmountNew = STANDARD_DEDUCTION_NEW;
     applicableProfessionalTax = professionalTax;
   } else if (incomeType === 'freelance') {
     const receipts = inputs.freelanceGrossReceipts || 0;
@@ -75,15 +77,19 @@ export function calculateTaxes(inputs) {
   }
 
   // Common computations
-  const salaryIncome = incomeType === 'salary' 
-    ? Math.max(0, grossIncome - standardDeductionAmount - applicableProfessionalTax)
+  const salaryIncomeOld = incomeType === 'salary' 
+    ? Math.max(0, grossIncome - standardDeductionAmountOld - applicableProfessionalTax)
     : 0;
     
-  const grossTotalIncomeBase = salaryIncome + businessOrProfessionIncome + (incomeType === 'salary' ? bonus : 0) + savingsInterest + fdInterest;
+  const salaryIncomeNew = incomeType === 'salary' 
+    ? Math.max(0, grossIncome - standardDeductionAmountNew - applicableProfessionalTax)
+    : 0;
+    
+  const grossTotalIncomeBaseNew = salaryIncomeNew + businessOrProfessionIncome + (incomeType === 'salary' ? bonus : 0) + savingsInterest + fdInterest;
   
   // -- OLD REGIME COMPUTATION --
   const hraExemption = incomeType === 'salary' ? calculateHRAExemption(basicSalary, actualHRAReceived, actualRentPaid, isMetro) : 0;
-  const incomeFromSalariesOld = salaryIncome + (incomeType === 'salary' ? bonus : 0) - hraExemption;
+  const incomeFromSalariesOld = salaryIncomeOld + (incomeType === 'salary' ? bonus : 0) - hraExemption;
   const grossTotalIncomeOld = incomeFromSalariesOld + businessOrProfessionIncome + savingsInterest + fdInterest;
   
   const sec80C = calculate80C(total80C);
@@ -121,7 +127,7 @@ export function calculateTaxes(inputs) {
   // New regime doesn't allow HRA, 80C, 80D, 24b, 80TTA/TTB, or employee NPS 80CCD1B
   const sec80CCD2New = incomeType === 'salary' ? calculate80CCD2New(employerNPS, basicSalary) : 0;
   
-  let taxableIncomeNew = Math.max(0, grossTotalIncomeBase - sec80CCD2New);
+  let taxableIncomeNew = Math.max(0, grossTotalIncomeBaseNew - sec80CCD2New);
   taxableIncomeNew = Math.round(taxableIncomeNew / 10) * 10;
   
   const { tax: taxBeforeRebateNew, breakdown: breakdownNew } = computeSlabTax(taxableIncomeNew, newRegimeSlabs);
@@ -165,7 +171,7 @@ export function calculateTaxes(inputs) {
       businessOrProfessionIncome,
       grossTotalIncome: grossTotalIncomeOld,
       deductions: {
-        standardDeduction: standardDeductionAmount,
+        standardDeduction: standardDeductionAmountOld,
         professionalTax: applicableProfessionalTax,
         hraExemption,
         section80C: sec80C,
@@ -192,12 +198,12 @@ export function calculateTaxes(inputs) {
       grossIncome,
       totalIncomeBeforeDeductions,
       businessOrProfessionIncome,
-      grossTotalIncome: grossTotalIncomeBase,
+      grossTotalIncome: grossTotalIncomeBaseNew,
       deductions: {
-        standardDeduction: standardDeductionAmount,
+        standardDeduction: standardDeductionAmountNew,
         professionalTax: applicableProfessionalTax,
         npsEmployer_80CCD2: sec80CCD2New,
-        total: standardDeductionAmount + applicableProfessionalTax + sec80CCD2New
+        total: standardDeductionAmountNew + applicableProfessionalTax + sec80CCD2New
       },
       taxableIncome: taxableIncomeNew,
       slabBreakdown: breakdownNew,

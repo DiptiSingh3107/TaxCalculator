@@ -1,7 +1,7 @@
 // Deduction computation functions
 
-export const STANDARD_DEDUCTION = 75000;
-
+export const STANDARD_DEDUCTION_OLD = 50000;
+export const STANDARD_DEDUCTION_NEW = 75000;
 export function calculateHRAExemption(basicSalary, actualHRAReceived, actualRentPaid, isMetro) {
   const rentMinus10PercentBasic = Math.max(0, actualRentPaid - (0.10 * basicSalary));
   const basicMultiplier = isMetro ? 0.50 : 0.40;
